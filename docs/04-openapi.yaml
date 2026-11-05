@@ -1,0 +1,692 @@
+openapi: 3.0.3
+info:
+  title: Voice AI Intern Interview System API
+  description: REST API specification for Core Backend (Spring Boot) and Internal Endpoints for Voice/AI Gateway.
+  version: 1.0.0
+  contact:
+    name: Tech Lead & Solution Architect
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Core Spring Boot Backend Local Server
+  - url: http://localhost:3000/api/v1
+    description: Voice/AI Gateway Local Server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user account (Candidate or HR)
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/login:
+    post:
+      summary: Authenticate user and obtain JWT tokens
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      summary: Get currently authenticated user profile
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /positions:
+    get:
+      summary: List all open intern positions
+      tags: [Positions]
+      responses:
+        '200':
+          description: List of intern positions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PositionDto'
+    post:
+      summary: Create a new intern position (HR/Admin only)
+      tags: [Positions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePositionRequest'
+      responses:
+        '201':
+          description: Position created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDto'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /positions/{id}:
+    get:
+      summary: Get details of an intern position
+      tags: [Positions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Position details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDto'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /questions:
+    get:
+      summary: Query questions bank by skill or difficulty (HR/Admin)
+      tags: [Questions]
+      parameters:
+        - name: positionId
+          in: query
+          schema:
+            type: integer
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [EASY, MEDIUM, HARD]
+      responses:
+        '200':
+          description: List of questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuestionDto'
+    post:
+      summary: Create a new question (HR/Admin)
+      tags: [Questions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuestionRequest'
+      responses:
+        '201':
+          description: Question created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionDto'
+
+  /consents:
+    post:
+      summary: Record candidate audio recording consent
+      tags: [Consent]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConsentRequest'
+      responses:
+        '201':
+          description: Consent recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentDto'
+
+  /sessions:
+    get:
+      summary: List candidate or HR interview sessions
+      tags: [Interview Sessions]
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewSessionDto'
+    post:
+      summary: Create/Schedule a new interview session
+      tags: [Interview Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created with session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+
+  /sessions/{id}:
+    get:
+      summary: Get details of an interview session
+      tags: [Interview Sessions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSessionDto'
+
+  /sessions/{id}/transcripts:
+    get:
+      summary: Get full transcript segments of a session
+      tags: [Interview Sessions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of transcript segments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TranscriptSegmentDto'
+
+  /evaluations:
+    get:
+      summary: List evaluation results with filtering (HR/Admin)
+      tags: [Evaluations]
+      parameters:
+        - name: positionId
+          in: query
+          schema:
+            type: integer
+        - name: minScore
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: List of evaluations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EvaluationDto'
+
+  /evaluations/{id}:
+    get:
+      summary: Get evaluation details
+      tags: [Evaluations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Evaluation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDto'
+    put:
+      summary: HR override evaluation scores and feedback
+      tags: [Evaluations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HROverrideEvaluationRequest'
+      responses:
+        '200':
+          description: Evaluation updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDto'
+
+  # Internal APIs called by Voice/AI Gateway
+  /internal/sessions/{id}/context:
+    get:
+      summary: Internal gateway fetch session context and questions
+      tags: [Internal Gateway Integration]
+      security:
+        - InternalServiceKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Session context for AI interviewer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalSessionContextResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /internal/sessions/{id}/transcripts:
+    post:
+      summary: Internal gateway save a completed Q&A transcript segment
+      tags: [Internal Gateway Integration]
+      security:
+        - InternalServiceKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveTranscriptSegmentRequest'
+      responses:
+        '201':
+          description: Transcript segment saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptSegmentDto'
+
+  /internal/sessions/{id}/evaluations:
+    post:
+      summary: Internal gateway submit final AI rubric evaluation
+      tags: [Internal Gateway Integration]
+      security:
+        - InternalServiceKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitAIEvaluationRequest'
+      responses:
+        '201':
+          description: Evaluation saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDto'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    InternalServiceKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Key
+
+  responses:
+    BadRequestError:
+      description: Bad Request (Invalid parameters)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnauthorizedError:
+      description: Unauthorized (Token missing or expired)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ForbiddenError:
+      description: Forbidden (Insufficient permissions or invalid service key)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ConflictError:
+      description: Resource conflict (Email already exists)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "https://api.intern-interview.vn/errors/bad-request"
+        title:
+          type: string
+          example: "Bad Request"
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          example: "Email address is already registered."
+        instance:
+          type: string
+          example: "/api/v1/auth/register"
+        timestamp:
+          type: string
+          format: date-time
+
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, role]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "candidate@intern.vn"
+        password:
+          type: string
+          minLength: 8
+          example: "P@ssw0rd123"
+        fullName:
+          type: string
+          example: "Nguyễn Văn An"
+        phone:
+          type: string
+          example: "0912345678"
+        role:
+          type: string
+          enum: [ROLE_CANDIDATE, ROLE_INTERVIEWER]
+          example: "ROLE_CANDIDATE"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "candidate@intern.vn"
+        password:
+          type: string
+          example: "P@ssw0rd123"
+
+    AuthResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            token: { type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6..." }
+            tokenType: { type: string, example: "Bearer" }
+            expiresIn: { type: integer, example: 86400 }
+            user: { $ref: '#/components/schemas/UserDto' }
+
+    UserDto:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        email: { type: string, example: "candidate@intern.vn" }
+        fullName: { type: string, example: "Nguyễn Văn An" }
+        role: { type: string, example: "ROLE_CANDIDATE" }
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { $ref: '#/components/schemas/UserDto' }
+
+    PositionDto:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: "Java Backend Intern" }
+        description: { type: string, example: "Vị trí thực tập lập trình backend Java Spring Boot" }
+        requirements: { type: string, example: "Nắm vững OOP, Java Core, kiến thức cơ bản SQL" }
+        skills:
+          type: array
+          items: { type: string, example: "Java Core" }
+
+    CreatePositionRequest:
+      type: object
+      required: [title, description, requirements]
+      properties:
+        title: { type: string, example: "Java Backend Intern" }
+        description: { type: string, example: "Mô tả công việc" }
+        requirements: { type: string, example: "Yêu cầu kỹ năng" }
+        skillIds:
+          type: array
+          items: { type: integer }
+
+    QuestionDto:
+      type: object
+      properties:
+        id: { type: integer, example: 10 }
+        positionId: { type: integer, example: 1 }
+        content: { type: string, example: "Trình bày 4 tính chất của Lập trình Hướng đối tượng (OOP)?" }
+        difficulty: { type: string, enum: [EASY, MEDIUM, HARD], example: "EASY" }
+        sampleAnswer: { type: string, example: "Đóng gói, Kế thừa, Đa hình, Trừu tượng." }
+        evaluationRubric: { type: string, example: "Nêu đủ 4 tính chất (4đ), cho ví dụ đúng (6đ)." }
+
+    CreateQuestionRequest:
+      type: object
+      required: [positionId, content, difficulty, sampleAnswer]
+      properties:
+        positionId: { type: integer, example: 1 }
+        content: { type: string, example: "Câu hỏi kỹ thuật" }
+        difficulty: { type: string, enum: [EASY, MEDIUM, HARD] }
+        sampleAnswer: { type: string, example: "Câu trả lời mẫu" }
+        evaluationRubric: { type: string, example: "Tiêu chí chấm điểm" }
+
+    CreateConsentRequest:
+      type: object
+      required: [consentType, agreed]
+      properties:
+        consentType: { type: string, example: "AUDIO_RECORDING" }
+        agreed: { type: boolean, example: true }
+        policyVersion: { type: string, example: "v1.0" }
+
+    ConsentDto:
+      type: object
+      properties:
+        id: { type: integer, example: 5 }
+        userId: { type: integer, example: 1 }
+        consentType: { type: string, example: "AUDIO_RECORDING" }
+        agreed: { type: boolean, example: true }
+        agreedAt: { type: string, format: date-time }
+
+    CreateSessionRequest:
+      type: object
+      required: [positionId]
+      properties:
+        positionId: { type: integer, example: 1 }
+        scheduledTime: { type: string, format: date-time }
+
+    CreateSessionResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            sessionId: { type: integer, example: 42 }
+            sessionToken: { type: string, example: "sess_jwt_token_for_gateway" }
+            gatewayWsUrl: { type: string, example: "ws://localhost:3000/ws/interview" }
+
+    InterviewSessionDto:
+      type: object
+      properties:
+        id: { type: integer, example: 42 }
+        candidateId: { type: integer, example: 1 }
+        candidateName: { type: string, example: "Nguyễn Văn An" }
+        positionId: { type: integer, example: 1 }
+        positionTitle: { type: string, example: "Java Backend Intern" }
+        status: { type: string, enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED], example: "COMPLETED" }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+
+    TranscriptSegmentDto:
+      type: object
+      properties:
+        id: { type: integer, example: 101 }
+        sessionId: { type: integer, example: 42 }
+        questionId: { type: integer, example: 10 }
+        questionText: { type: string, example: "Trình bày 4 tính chất của OOP?" }
+        answerText: { type: string, example: "Dạ 4 tính chất gồm Đóng gói, Kế thừa, Đa hình và Trừu tượng..." }
+        durationSeconds: { type: integer, example: 45 }
+        createdAt: { type: string, format: date-time }
+
+    EvaluationDto:
+      type: object
+      properties:
+        id: { type: integer, example: 8 }
+        sessionId: { type: integer, example: 42 }
+        candidateName: { type: string, example: "Nguyễn Văn An" }
+        positionTitle: { type: string, example: "Java Backend Intern" }
+        technicalScore: { type: number, example: 8.5 }
+        problemSolvingScore: { type: number, example: 8.0 }
+        communicationScore: { type: number, example: 7.5 }
+        overallScore: { type: number, example: 8.1 }
+        aiFeedback: { type: string, example: "Ứng viên nắm chắc kiến thức cơ bản Java, giải thích rõ ràng." }
+        hrScoreOverride: { type: number, example: 8.5 }
+        hrNotes: { type: string, example: "Đồng ý nhận làm Intern Java đợt 1." }
+        finalStatus: { type: string, enum: [PASSED, FAILED, UNDER_REVIEW], example: "PASSED" }
+
+    HROverrideEvaluationRequest:
+      type: object
+      properties:
+        hrScoreOverride: { type: number, example: 8.5 }
+        hrNotes: { type: string, example: "Nhận xét phỏng vấn viên" }
+        finalStatus: { type: string, enum: [PASSED, FAILED, UNDER_REVIEW], example: "PASSED" }
+
+    InternalSessionContextResponse:
+      type: object
+      properties:
+        sessionId: { type: integer, example: 42 }
+        candidateId: { type: integer, example: 1 }
+        positionTitle: { type: string, example: "Java Backend Intern" }
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionDto'
+
+    SaveTranscriptSegmentRequest:
+      type: object
+      required: [questionText, answerText]
+      properties:
+        questionId: { type: integer, example: 10 }
+        questionText: { type: string, example: "Trình bày 4 tính chất OOP?" }
+        answerText: { type: string, example: "Dạ gồm đóng gói, kế thừa..." }
+        durationSeconds: { type: integer, example: 40 }
+
+    SubmitAIEvaluationRequest:
+      type: object
+      required: [technicalScore, problemSolvingScore, communicationScore, overallScore, aiFeedback]
+      properties:
+        technicalScore: { type: number, example: 8.5 }
+        problemSolvingScore: { type: number, example: 8.0 }
+        communicationScore: { type: number, example: 7.5 }
+        overallScore: { type: number, example: 8.1 }
+        aiFeedback: { type: string, example: "Phân tích chi tiết strengths, weaknesses..." }
