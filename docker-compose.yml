@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: intern-interview-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: intern_interview
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d intern_interview"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend-spring:
+    build:
+      context: ./backend-spring
+      dockerfile: Dockerfile
+    container_name: intern-interview-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/intern_interview
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      JWT_SECRET: dGhpcy1pcy1hLXNlY3VyZS1qd3Qtc2VjcmV0LWtleS1mb3Itdm9pY2UtaW50ZXJ2aWV3LXN5c3RlbS0yMDI2LXZpZXRuYW0=
+      JWT_EXPIRATION_MS: 86400000
+      INTERNAL_SERVICE_KEY: intern-voice-gateway-internal-secret-token-key-2026
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://frontend:80
+      APP_GATEWAY_WS_URL: ws://localhost:3000/ws/interview
+
+  voice-gateway-node:
+    build:
+      context: ./voice-gateway-node
+      dockerfile: Dockerfile
+    container_name: intern-voice-gateway
+    restart: unless-stopped
+    depends_on:
+      - backend-spring
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      SPRING_BACKEND_URL: http://backend-spring:8080
+      INTERNAL_SERVICE_KEY: intern-voice-gateway-internal-secret-token-key-2026
+      STT_PROVIDER: mock
+      TTS_PROVIDER: mock
+      LLM_PROVIDER: mock
+      DEEPGRAM_API_KEY: ""
+      AZURE_SPEECH_KEY: ""
+      AZURE_SPEECH_REGION: "eastasia"
+      ANTHROPIC_API_KEY: ""
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: intern-interview-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend-spring
+      - voice-gateway-node
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:

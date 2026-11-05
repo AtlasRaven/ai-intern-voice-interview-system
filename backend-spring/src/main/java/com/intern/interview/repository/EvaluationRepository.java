@@ -13,8 +13,12 @@ import java.util.Optional;
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     Optional<Evaluation> findBySessionId(Long sessionId);
 
-    @Query("SELECT e FROM Evaluation e WHERE " +
-           "(:positionId IS NULL OR e.session.position.id = :positionId) AND " +
+    @Query("SELECT e FROM Evaluation e " +
+           "JOIN FETCH e.session s " +
+           "JOIN FETCH s.candidate c " +
+           "JOIN FETCH c.user u " +
+           "JOIN FETCH s.position p " +
+           "WHERE (:positionId IS NULL OR p.id = :positionId) AND " +
            "(:minScore IS NULL OR e.overallScore >= :minScore) " +
            "ORDER BY e.overallScore DESC")
     List<Evaluation> findWithFilters(@Param("positionId") Integer positionId,

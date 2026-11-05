@@ -87,6 +87,11 @@ export class WebSocketGateway {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(event));
           }
+          if (event.event === 'SESSION_COMPLETED') {
+            console.log(`[WebSocketGateway] Session ${sessionKey} completed. Cleaning up activeSessions.`);
+            fsm.destroy();
+            this.activeSessions.delete(sessionKey);
+          }
         };
 
         const fsm = new InterviewStateMachine(
@@ -147,7 +152,14 @@ export class WebSocketGateway {
 
     ws.on('close', () => {
       console.log(`[WebSocketGateway] Socket closed for session: ${sessionKey}`);
-      fsm.handleDisconnect();
+      if (fsm.getState() === 'COMPLETED') {
+        fsm.destroy();
+        this.activeSessions.delete(sessionKey);
+      } else {
+        fsm.handleDisconnect(() => {
+          this.activeSessions.delete(sessionKey);
+        });
+      }
     });
 
     ws.on('error', (err) => {

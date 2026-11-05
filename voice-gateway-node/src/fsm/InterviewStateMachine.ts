@@ -110,7 +110,16 @@ export class InterviewStateMachine {
     await this.finishInterview();
   }
 
-  public handleDisconnect(): void {
+  public destroy(): void {
+    this.clearSilenceTimer();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.ttsProvider.cancel();
+  }
+
+  public handleDisconnect(onExpired?: () => void): void {
     console.log('[FSM] Client disconnected. Starting 60s reconnect grace timer.');
     this.clearSilenceTimer();
     this.stateBeforeDisconnect = this.state;
@@ -118,6 +127,9 @@ export class InterviewStateMachine {
 
     this.reconnectTimer = setTimeout(async () => {
       console.log('[FSM] Reconnect grace period expired. Terminating session.');
+      if (onExpired) {
+        onExpired();
+      }
       await this.backendClient.terminateSession(this.context.sessionId, 'CLIENT_DISCONNECTED_TIMEOUT');
     }, 60000);
   }
@@ -249,6 +261,11 @@ export class InterviewStateMachine {
     }
 
     this.transitionTo(SessionState.COMPLETED);
+    this.clearSilenceTimer();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.emitEvent({
       event: 'SESSION_COMPLETED',
       payload: { evaluation },

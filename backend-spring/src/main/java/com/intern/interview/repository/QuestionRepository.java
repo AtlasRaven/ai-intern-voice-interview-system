@@ -9,4 +9,5 @@ import java.util.List;
 public interface QuestionRepository extends JpaRepository<Question, Long> {
     List<Question> findByPositionIdAndActiveTrue(Integer positionId);
     List<Question> findByPositionIdAndDifficultyAndActiveTrue(Integer positionId, String difficulty);
+    List<Question> findByDifficultyAndActiveTrue(String difficulty);
 }

@@ -75,8 +75,19 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
 
         // Pre-select questions for the session (Easy -> Medium -> Hard)
         List<Question> easyQuestions = questionRepository.findByPositionIdAndDifficultyAndActiveTrue(position.getId(), "EASY");
+        if (easyQuestions.isEmpty()) {
+            easyQuestions = questionRepository.findByDifficultyAndActiveTrue("EASY");
+        }
+
         List<Question> mediumQuestions = questionRepository.findByPositionIdAndDifficultyAndActiveTrue(position.getId(), "MEDIUM");
+        if (mediumQuestions.isEmpty()) {
+            mediumQuestions = questionRepository.findByDifficultyAndActiveTrue("MEDIUM");
+        }
+
         List<Question> hardQuestions = questionRepository.findByPositionIdAndDifficultyAndActiveTrue(position.getId(), "HARD");
+        if (hardQuestions.isEmpty()) {
+            hardQuestions = questionRepository.findByDifficultyAndActiveTrue("HARD");
+        }
 
         int order = 1;
         if (!easyQuestions.isEmpty()) {
