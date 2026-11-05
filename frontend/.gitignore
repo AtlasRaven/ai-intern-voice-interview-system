@@ -3,3 +3,6 @@ dist/
 dist-ssr/
 *.local
 *.log
+.env
+.env.*
+!.env.example
